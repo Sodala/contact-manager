@@ -1,26 +1,16 @@
 package com.github.mcordemans.contactmanager.controllers;
 
-import com.github.mcordemans.contactmanager.domain.Address;
-import com.github.mcordemans.contactmanager.domain.Company;
-import com.github.mcordemans.contactmanager.domain.Contact;
-import com.github.mcordemans.contactmanager.mappers.AddressMapper;
-import com.github.mcordemans.contactmanager.mappers.CompanyMapper;
-import com.github.mcordemans.contactmanager.mappers.ContactMapper;
-import com.github.mcordemans.contactmanager.repositories.CompanyRepository;
-import com.github.mcordemans.contactmanager.repositories.ContactRepository;
 import com.github.mcordemans.contactmanager.resources.address.AddressResource;
 import com.github.mcordemans.contactmanager.resources.company.CompanyResource;
 import com.github.mcordemans.contactmanager.resources.contact.ContactAddCompanyResource;
 import com.github.mcordemans.contactmanager.resources.contact.ContactModificationResource;
 import com.github.mcordemans.contactmanager.resources.contact.ContactResource;
-import org.springframework.http.HttpStatus;
+import com.github.mcordemans.contactmanager.services.ContactService;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import javax.validation.Valid;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 
@@ -28,105 +18,54 @@ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 @RequestMapping(value = "/contacts", produces = {APPLICATION_JSON_VALUE})
 public class ContactController {
 
-    private final ContactRepository contactRepository;
+    private final ContactService contactService;
 
-    private final CompanyRepository companyRepository;
-
-    private final ContactMapper contactMapper;
-
-    private final AddressMapper addressMapper;
-
-    private final CompanyMapper companyMapper;
-
-    public ContactController(ContactRepository contactRepository,
-                             CompanyRepository companyRepository,
-                             ContactMapper contactMapper,
-                             AddressMapper addressMapper,
-                             CompanyMapper companyMapper) {
-        this.contactRepository = contactRepository;
-        this.companyRepository = companyRepository;
-        this.contactMapper = contactMapper;
-        this.addressMapper = addressMapper;
-        this.companyMapper = companyMapper;
+    public ContactController(ContactService contactService) {
+        this.contactService = contactService;
     }
 
     @GetMapping
-    private List<ContactResource> getAll() {
-        return contactRepository.findAll()
-                .stream()
-                .map(contactMapper::toResource)
-                .collect(Collectors.toList());
+    public List<ContactResource> getAll() {
+        return contactService.getAll();
     }
 
     @GetMapping("/{id}")
-    private ContactResource getById(@PathVariable UUID id) {
-        return contactRepository.findById(id)
-                .map(contactMapper::toResource)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    public ContactResource getById(@PathVariable UUID id) {
+        return contactService.getById(id);
     }
 
     @DeleteMapping("/{id}")
-    private void deleteById(@PathVariable UUID id) {
-        final Contact contact = contactRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        contactRepository.delete(contact);
+    public void deleteById(@PathVariable UUID id) {
+        contactService.deleteById(id);
     }
 
     @PostMapping
-    private ContactResource create(@Valid @RequestBody ContactModificationResource resource) {
-        final Contact contact = contactMapper.toEntity(resource);
-        final Address address = addressMapper.toEntity(resource.getAddress());
-        contact.setAddress(address);
-        return contactMapper.toResource(contactRepository.save(contact));
+    public ContactResource create(@Valid @RequestBody ContactModificationResource resource) {
+        return contactService.create(resource);
     }
 
     @PutMapping("/{id}")
-    private ContactResource update(@PathVariable UUID id, @Valid @RequestBody ContactModificationResource resource) {
-        return contactRepository.findById(id)
-                .map(contact -> contactMapper.toEntity(resource, contact))
-                .map(contact -> {
-                    contact.setAddress(addressMapper.toEntity(resource.getAddress()));
-                    return contact;
-                })
-                .map(contactRepository::save)
-                .map(contactMapper::toResource)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    public ContactResource update(@PathVariable UUID id, @Valid @RequestBody ContactModificationResource resource) {
+        return contactService.update(id, resource);
     }
 
     @GetMapping("/{id}/address")
-    private AddressResource getAddress(@PathVariable UUID id) {
-        return contactRepository.findById(id)
-                .map(Contact::getAddress)
-                .map(addressMapper::toResource)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    public AddressResource getAddress(@PathVariable UUID id) {
+        return contactService.getAddress(id);
     }
 
     @GetMapping("/{id}/companies")
-    private List<CompanyResource> getCompanies(@PathVariable UUID id) {
-        Contact contact = contactRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        return contact.getCompanies().stream()
-                .map(companyMapper::toResource)
-                .collect(Collectors.toList());
+    public List<CompanyResource> getCompanies(@PathVariable UUID id) {
+        return contactService.getCompanies(id);
     }
 
     @PostMapping("/{id}/companies")
-    private CompanyResource addCompany(@PathVariable UUID id, @Valid ContactAddCompanyResource contactAddCompanyResource) {
-        Company company = companyRepository.findById(contactAddCompanyResource.getCompanyId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        Contact contact = contactRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        company.addContact(contact);
-        return companyMapper.toResource(companyRepository.save(company));
+    public CompanyResource addCompany(@PathVariable UUID id, @Valid ContactAddCompanyResource contactAddCompanyResource) {
+        return contactService.addCompany(id, contactAddCompanyResource);
     }
 
     @PostMapping("/{id}/companies/{companyId}")
-    private void deleteCompany(@PathVariable UUID id, @PathVariable UUID companyId) {
-        Company company = companyRepository.findById(companyId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        Contact contact = contactRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        company.removeContact(contact);
-        companyRepository.save(company);
+    public void deleteCompany(@PathVariable UUID id, @PathVariable UUID companyId) {
+        contactService.deleteCompany(id, companyId);
     }
 }
