@@ -1,13 +1,16 @@
 package com.github.mcordemans.contactmanager.controllers;
 
 import com.github.mcordemans.contactmanager.domain.Address;
+import com.github.mcordemans.contactmanager.domain.Company;
 import com.github.mcordemans.contactmanager.domain.Contact;
 import com.github.mcordemans.contactmanager.mappers.AddressMapper;
 import com.github.mcordemans.contactmanager.mappers.CompanyMapper;
 import com.github.mcordemans.contactmanager.mappers.ContactMapper;
+import com.github.mcordemans.contactmanager.repositories.CompanyRepository;
 import com.github.mcordemans.contactmanager.repositories.ContactRepository;
 import com.github.mcordemans.contactmanager.resources.address.AddressResource;
 import com.github.mcordemans.contactmanager.resources.company.CompanyResource;
+import com.github.mcordemans.contactmanager.resources.contact.ContactAddCompanyResource;
 import com.github.mcordemans.contactmanager.resources.contact.ContactModificationResource;
 import com.github.mcordemans.contactmanager.resources.contact.ContactResource;
 import org.springframework.http.HttpStatus;
@@ -27,6 +30,8 @@ public class ContactController {
 
     private final ContactRepository contactRepository;
 
+    private final CompanyRepository companyRepository;
+
     private final ContactMapper contactMapper;
 
     private final AddressMapper addressMapper;
@@ -34,10 +39,12 @@ public class ContactController {
     private final CompanyMapper companyMapper;
 
     public ContactController(ContactRepository contactRepository,
+                             CompanyRepository companyRepository,
                              ContactMapper contactMapper,
                              AddressMapper addressMapper,
                              CompanyMapper companyMapper) {
         this.contactRepository = contactRepository;
+        this.companyRepository = companyRepository;
         this.contactMapper = contactMapper;
         this.addressMapper = addressMapper;
         this.companyMapper = companyMapper;
@@ -101,5 +108,25 @@ public class ContactController {
         return contact.getCompanies().stream()
                 .map(companyMapper::toResource)
                 .collect(Collectors.toList());
+    }
+
+    @PostMapping("/{id}/companies")
+    private CompanyResource addCompany(@PathVariable UUID id, @Valid ContactAddCompanyResource contactAddCompanyResource) {
+        Company company = companyRepository.findById(contactAddCompanyResource.getCompanyId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        Contact contact = contactRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        company.addContact(contact);
+        return companyMapper.toResource(companyRepository.save(company));
+    }
+
+    @PostMapping("/{id}/companies/{companyId}")
+    private void deleteCompany(@PathVariable UUID id, @PathVariable UUID companyId) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        Contact contact = contactRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        company.removeContact(contact);
+        companyRepository.save(company);
     }
 }
