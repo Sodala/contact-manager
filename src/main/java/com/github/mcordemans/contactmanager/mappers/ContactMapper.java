@@ -29,7 +29,7 @@ public class ContactMapper {
     public Contact toEntity(ContactModificationResource resource, Contact contact) {
         contact.setLastName(resource.getLastName());
         contact.setFirstName(resource.getFirstName());
-        contact.setType(ContactType.valueOf(contact.getType().name()));
+        contact.setType(ContactType.valueOf(resource.getType().name()));
         contact.setVatNumber(resource.getVatNumber());
         return contact;
     }
